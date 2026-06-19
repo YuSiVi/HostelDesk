@@ -1,0 +1,158 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="HostelDesk — Student Complaint Management System">
+  <title>HostelDesk</title>
+  <link rel="stylesheet" href="{% static 'css/style.css' %}">
+</head>
+<body>
+
+  <div class="container">
+
+    <!-- Header -->
+    <div class="header">
+      <h1>🏠 HostelDesk</h1>
+      <p class="subtitle">Student Complaint System</p>
+    </div>
+
+    <!-- Stats Dashboard -->
+    <div class="stats-grid">
+      <div class="glass stat-card stat-total">
+        <div class="stat-value">{{ total }}</div>
+        <div class="stat-label">Total</div>
+      </div>
+      <div class="glass stat-card stat-pending">
+        <div class="stat-value">{{ pending }}</div>
+        <div class="stat-label">Pending</div>
+      </div>
+      <div class="glass stat-card stat-resolved">
+        <div class="stat-value">{{ resolved_pct }}%</div>
+        <div class="stat-label">Resolved</div>
+      </div>
+      <div class="glass stat-card stat-satisfaction">
+        <div class="stat-value">{% if avg_satisfaction %}{{ avg_satisfaction }}★{% else %}—{% endif %}</div>
+        <div class="stat-label">Avg Rating</div>
+      </div>
+      {% if overdue_count > 0 %}
+      <div class="glass stat-card stat-overdue">
+        <div class="stat-value">{{ overdue_count }}</div>
+        <div class="stat-label">🚨 Overdue</div>
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- Filter Bar -->
+    <form method="GET" class="glass filter-bar">
+      <select name="status">
+        <option value="">All Statuses</option>
+        {% for value, label in status_choices %}
+        <option value="{{ value }}" {% if current_status == value %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+
+      <select name="category">
+        <option value="">All Categories</option>
+        {% for value, label in category_choices %}
+        <option value="{{ value }}" {% if current_category == value %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+
+      <input type="text" name="q" placeholder="🔍 Search by name, room, or keyword..." value="{{ current_search }}">
+
+      <button type="submit" class="btn-filter">Filter</button>
+      <a href="{% url 'home' %}" class="btn-clear">Clear</a>
+    </form>
+
+    <!-- Section Header -->
+    <div class="section-header">
+      <h2>All Complaints</h2>
+      <a href="{% url 'submit' %}" class="btn-submit">＋ New Complaint</a>
+    </div>
+
+    <!-- Complaint List -->
+    {% if complaints %}
+      {% for c in complaints %}
+      <div class="glass complaint-card status-{{ c.status }} {% if c.is_overdue %}overdue{% endif %}">
+        <div class="complaint-top">
+          <div class="complaint-info">
+            <h3><a href="{% url 'complaint_detail' c.id %}">{{ c.student_name }} — Room {{ c.room_number }}</a></h3>
+            <div class="complaint-meta">
+              <span class="badge badge-category">{{ c.get_category_display }}</span>
+              <span class="badge badge-priority-{{ c.priority }}">{{ c.get_priority_display }}</span>
+              {% if c.is_overdue %}<span class="badge badge-overdue">🚨 OVERDUE</span>{% endif %}
+              <span class="filed-date">{{ c.date_filed|date:"M d, Y — h:i A" }}</span>
+            </div>
+          </div>
+
+          {% if c.satisfaction %}
+          <div class="stars-display">
+            {% for i in "12345" %}
+              {% if forloop.counter <= c.satisfaction %}
+                <span class="star-filled">★</span>
+              {% else %}
+                <span class="star-empty">☆</span>
+              {% endif %}
+            {% endfor %}
+          </div>
+          {% endif %}
+        </div>
+
+        <p class="complaint-desc">{{ c.description }}</p>
+
+        <div class="complaint-actions">
+          <!-- Upvote -->
+          <form method="POST" action="{% url 'upvote_complaint' c.id %}" style="display:inline;">
+            {% csrf_token %}
+            {% if c.id in upvoted_ids %}
+            <button type="button" class="upvote-btn" disabled style="opacity:0.5; cursor:default;">✅ Upvoted <span class="upvote-count">{{ c.upvotes }}</span></button>
+            {% else %}
+            <button type="submit" class="upvote-btn">👍 <span class="upvote-count">{{ c.upvotes }}</span></button>
+            {% endif %}
+          </form>
+
+          <!-- Status Dropdown -->
+          <form method="POST" action="{% url 'update_status' c.id %}" style="display:inline;">
+            {% csrf_token %}
+            <select name="status" class="status-select" onchange="this.form.submit()">
+              <option value="pending" {% if c.status == 'pending' %}selected{% endif %}>🟡 Pending</option>
+              <option value="inprogress" {% if c.status == 'inprogress' %}selected{% endif %}>🔵 In Progress</option>
+              <option value="resolved" {% if c.status == 'resolved' %}selected{% endif %}>🟢 Resolved</option>
+            </select>
+          </form>
+
+          <!-- Remark Count -->
+          <a href="{% url 'complaint_detail' c.id %}" class="remark-indicator">💬 {{ c.remark_count }} remark{{ c.remark_count|pluralize }}</a>
+
+          <span class="ml-auto"></span>
+
+          <!-- View Detail -->
+          <a href="{% url 'complaint_detail' c.id %}" class="btn-action btn-view">View</a>
+
+          <!-- Edit -->
+          <a href="{% url 'edit_complaint' c.id %}" class="btn-action btn-edit">✏️ Edit</a>
+
+          <!-- Delete (only resolved) -->
+          {% if c.status == 'resolved' %}
+          <form method="POST" action="{% url 'delete_complaint' c.id %}" style="display:inline;">
+            {% csrf_token %}
+            <button type="submit" class="btn-action btn-delete" onclick="return confirm('Remove this resolved complaint?')">🗑️ Remove</button>
+          </form>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    {% else %}
+      <div class="glass empty-state">
+        <div class="empty-icon">📭</div>
+        <p>No complaints found. Submit one to get started!</p>
+        <a href="{% url 'submit' %}" class="btn-submit">＋ Submit a Complaint</a>
+      </div>
+    {% endif %}
+
+  </div>
+
+</body>
+</html>

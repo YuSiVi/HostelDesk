@@ -1,0 +1,146 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ complaint.student_name }} — HostelDesk</title>
+  <link rel="stylesheet" href="{% static 'css/style.css' %}">
+</head>
+<body>
+
+  <div class="container">
+
+    <a href="{% url 'home' %}" class="back-link">← Back to All Complaints</a>
+
+    <!-- Complaint Detail -->
+    <div class="glass detail-header">
+      <div class="detail-meta">
+        <span class="badge badge-category">{{ complaint.get_category_display }}</span>
+        <span class="badge badge-priority-{{ complaint.priority }}">{{ complaint.get_priority_display }}</span>
+        {% if complaint.is_overdue %}<span class="badge badge-overdue">🚨 OVERDUE</span>{% endif %}
+        <span class="filed-date">Filed: {{ complaint.date_filed|date:"M d, Y — h:i A" }}</span>
+        {% if complaint.resolved_date %}
+        <span class="filed-date">• Resolved: {{ complaint.resolved_date|date:"M d, Y — h:i A" }}</span>
+        {% endif %}
+      </div>
+
+      <h1 class="detail-title">{{ complaint.student_name }} — Room {{ complaint.room_number }}</h1>
+
+      <p class="detail-body">{{ complaint.description }}</p>
+
+      <div class="detail-actions">
+        <!-- Upvote -->
+        <form method="POST" action="{% url 'upvote_complaint' complaint.id %}">
+          {% csrf_token %}
+          {% if already_upvoted %}
+          <button type="button" class="upvote-btn" disabled style="opacity:0.5; cursor:default;">✅ Upvoted <span class="upvote-count">{{ complaint.upvotes }}</span></button>
+          {% else %}
+          <button type="submit" class="upvote-btn">👍 Upvote <span class="upvote-count">{{ complaint.upvotes }}</span></button>
+          {% endif %}
+        </form>
+
+        <!-- Status -->
+        <form method="POST" action="{% url 'update_status' complaint.id %}">
+          {% csrf_token %}
+          <select name="status" class="status-select" onchange="this.form.submit()">
+            <option value="pending" {% if complaint.status == 'pending' %}selected{% endif %}>🟡 Pending</option>
+            <option value="inprogress" {% if complaint.status == 'inprogress' %}selected{% endif %}>🔵 In Progress</option>
+            <option value="resolved" {% if complaint.status == 'resolved' %}selected{% endif %}>🟢 Resolved</option>
+          </select>
+        </form>
+
+        <span class="ml-auto"></span>
+
+        <a href="{% url 'edit_complaint' complaint.id %}" class="btn-action btn-edit">✏️ Edit</a>
+
+        {% if complaint.status == 'resolved' %}
+        <form method="POST" action="{% url 'delete_complaint' complaint.id %}" style="display:inline;">
+          {% csrf_token %}
+          <button type="submit" class="btn-action btn-delete" onclick="return confirm('Remove this resolved complaint?')">🗑️ Remove</button>
+        </form>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Satisfaction Rating (only if resolved) -->
+    {% if complaint.status == 'resolved' %}
+    <div class="glass satisfaction-section">
+      {% if complaint.satisfaction %}
+        <h3>Satisfaction Rating</h3>
+        <div class="satisfaction-display">
+          {% for i in "12345" %}
+            {% if forloop.counter <= complaint.satisfaction %}
+              <span class="star-filled">★</span>
+            {% else %}
+              <span class="star-empty">☆</span>
+            {% endif %}
+          {% endfor %}
+          <span style="color: var(--text-secondary); font-size: 0.9rem; margin-left: 8px;">{{ complaint.satisfaction }}/5</span>
+        </div>
+      {% else %}
+        <h3>Rate Your Satisfaction</h3>
+        <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 16px;">How satisfied are you with the resolution?</p>
+        <form method="POST" action="{% url 'rate_complaint' complaint.id %}">
+          {% csrf_token %}
+          <input type="hidden" name="satisfaction" id="satisfaction-input" value="">
+          <div class="star-rating-input" id="star-rating">
+            <input type="radio" id="star5" name="star" value="5"><label for="star5" onclick="setStar(5)">★</label>
+            <input type="radio" id="star4" name="star" value="4"><label for="star4" onclick="setStar(4)">★</label>
+            <input type="radio" id="star3" name="star" value="3"><label for="star3" onclick="setStar(3)">★</label>
+            <input type="radio" id="star2" name="star" value="2"><label for="star2" onclick="setStar(2)">★</label>
+            <input type="radio" id="star1" name="star" value="1"><label for="star1" onclick="setStar(1)">★</label>
+          </div>
+          <button type="submit" class="btn-submit mt-16" id="rate-btn" style="display:none;">Submit Rating</button>
+        </form>
+      {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- Remarks Thread -->
+    <div class="remarks-section">
+      <h3>💬 Discussion ({{ remarks|length }} remark{{ remarks|length|pluralize }})</h3>
+
+      {% if remarks %}
+        {% for r in remarks %}
+        <div class="glass remark-card">
+          <div class="remark-header">
+            <span class="remark-author">{{ r.student_name }}</span>
+            <span class="remark-date">{{ r.created_at|date:"M d, Y — h:i A" }}</span>
+          </div>
+          <p class="remark-body">{{ r.content }}</p>
+        </div>
+        {% endfor %}
+      {% else %}
+        <p class="no-remarks">No remarks yet. Be the first to share your experience!</p>
+      {% endif %}
+
+      <!-- Add Remark Form -->
+      <div class="glass remark-form-card">
+        <h3 style="margin-bottom: 16px; font-size: 1rem;">Add a Remark</h3>
+        <form method="POST" action="{% url 'add_remark' complaint.id %}">
+          {% csrf_token %}
+          <div class="form-group">
+            <label for="id_student_name">Your Name</label>
+            {{ remark_form.student_name }}
+          </div>
+          <div class="form-group">
+            <label for="id_content">Your Remark</label>
+            {{ remark_form.content }}
+          </div>
+          <button type="submit" class="btn-submit">Post Remark</button>
+        </form>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    function setStar(value) {
+      document.getElementById('satisfaction-input').value = value;
+      document.getElementById('rate-btn').style.display = 'inline-flex';
+    }
+  </script>
+
+</body>
+</html>

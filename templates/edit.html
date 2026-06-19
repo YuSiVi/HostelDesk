@@ -1,0 +1,49 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Edit Complaint — HostelDesk</title>
+  <link rel="stylesheet" href="{% static 'css/style.css' %}">
+</head>
+<body>
+
+  <div class="container">
+
+    <a href="{% url 'home' %}" class="back-link">← Back to All Complaints</a>
+
+    <div class="glass form-card">
+      <h1>✏️ Edit Complaint</h1>
+      <p style="color: var(--text-secondary); margin-bottom: 28px;">Update the complaint details below.</p>
+
+      <form method="POST">
+        {% csrf_token %}
+        <div class="form-group">
+          <label for="id_student_name">Student Name</label>
+          {{ form.student_name }}
+        </div>
+        <div class="form-group">
+          <label for="id_room_number">Room Number</label>
+          {{ form.room_number }}
+        </div>
+        <div class="form-group">
+          <label for="id_category">Category</label>
+          {{ form.category }}
+        </div>
+        <div class="form-group">
+          <label for="id_priority">Priority</label>
+          {{ form.priority }}
+        </div>
+        <div class="form-group">
+          <label for="id_description">Description</label>
+          {{ form.description }}
+        </div>
+        <button type="submit" class="btn-submit">💾 Save Changes</button>
+      </form>
+    </div>
+
+  </div>
+
+</body>
+</html>
